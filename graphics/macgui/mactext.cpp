@@ -411,6 +411,12 @@ void MacText::setMaxWidth(int maxWidth) {
 
 void MacText::setColors(uint32 fg, uint32 bg) {
 	_canvas._tbgcolor = bg;
+
+	// Background changed — force full rerender to avoid stale blits
+	_fullRefresh = true;
+	_contentIsDirty = true;
+	render();
+
 	_canvas._tfgcolor = fg;
 	// also set the cursor color
 	_cursorSurface->clear(_canvas._tfgcolor);
@@ -630,8 +636,9 @@ void MacText::setDefaultFormatting(uint16 fontId, byte textSlant, uint16 fontSiz
 
 void MacText::render() {
 	if (_fullRefresh) {
-		_canvas._surface->clear(_canvas._tbgcolor);
-		if (_canvas._textShadow)
+		if (_canvas._surface)
+			_canvas._surface->clear(_canvas._tbgcolor);
+		if (_canvas._textShadow && _canvas._shadowSurface)
 			_canvas._shadowSurface->clear(_canvas._tbgcolor);
 
 		_canvas.render(0, _canvas._text.size());
@@ -905,14 +912,31 @@ void MacText::draw(ManagedSurface *g, int x, int y, int w, int h, int xoff, int 
 
 	render();
 
-	if (x + w < _canvas._surface->w || y + h < _canvas._surface->h)
-		g->fillRect(Common::Rect(x + xoff, y + yoff, x + w + xoff, y + h + yoff), _canvas._tbgcolor);
+	// Ensure canvas surface exists before accessing it
+    if (!_canvas._surface)
+        return;
 
-	// blit shadow surface first
-	if (_canvas._textShadow)
-		g->blitFrom(*_canvas._shadowSurface, Common::Rect(MIN<int>(_canvas._surface->w, x), MIN<int>(_canvas._surface->h, y), MIN<int>(_canvas._surface->w, x + w), MIN<int>(_canvas._surface->h, y + h)), Common::Point(xoff + _canvas._textShadow, yoff + _canvas._textShadow));
+	// Fill destination area with background color (destination coords)
+	g->fillRect(Common::Rect(x + xoff, y + yoff, x + w + xoff, y + h + yoff), _canvas._tbgcolor);
 
-	g->transBlitFrom(*_canvas._surface, Common::Rect(MIN<int>(_canvas._surface->w, x), MIN<int>(_canvas._surface->h, y), MIN<int>(_canvas._surface->w, x + w), MIN<int>(_canvas._surface->h, y + h)), Common::Point(xoff, yoff), _canvas._tbgcolor);
+	// Blit shadow surface (compute proper source rect and clip to shadow surface bounds)
+	if (_canvas._textShadow && _canvas._shadowSurface) {
+    	Common::Rect shadowSrc(x, y, x + w, y + h);
+    	shadowSrc.clip(_canvas._shadowSurface->getBounds());
+
+    	if (!shadowSrc.isEmpty()) {
+        	Common::Point shadowDst(xoff + (shadowSrc.left - x) + _canvas._textShadow, yoff + (shadowSrc.top - y) + _canvas._textShadow);
+        	g->blitFrom(*_canvas._shadowSurface, shadowSrc, shadowDst);
+    	}
+	}
+
+	// Blit actual text, maintianing background transparency
+	Common::Rect textSrc(x, y, x + w, y + h);
+	textSrc.clip(_canvas._surface->getBounds());
+
+	if (!textSrc.isEmpty()) {
+    	g->transBlitFrom(*_canvas._surface, textSrc, Common::Point(xoff, yoff), _canvas._tbgcolor);
+	}
 
 	if (_scrollBar && _scrollBorder.hasBorder(kWindowBorderScrollbar)) {
 		uint32 transcolor = (_wm->_pixelformat.bytesPerPixel == 1) ? _wm->_colorGreen : 0;

@@ -222,6 +222,7 @@ void RichTextWidget::createWidget() {
 		_txtWnd->setImageArchive(_imageArchive);
 
 	_txtWnd->setMarkdownText(_text);
+	_txtWnd->render();
 
 	int textHeight = _txtWnd->getTextHeight();
 
@@ -270,10 +271,15 @@ void RichTextWidget::drawWidget() {
 
 	if (_cachedTextSurface) {
     	int cachedHeight = _cachedTextSurface->h;
-    	int maxY = MAX(0, cachedHeight - _textHeight);
-    	int srcY = CLIP((int)_scrolledY, 0, maxY);
+    	int srcY = CLIP((int)_scrolledY, 0, cachedHeight - 1);
 
-    	_surface->blitFrom(*_cachedTextSurface, Common::Rect(0, srcY, _textWidth, MIN(srcY + _textHeight, cachedHeight)), Common::Point(0, 0));
+    	Common::Rect srcRect(0, srcY, _textWidth, MIN(srcY + _textHeight, cachedHeight));
+
+
+    	srcRect.clip(_cachedTextSurface->getBounds());
+
+    if (!srcRect.isEmpty())
+        _surface->transBlitFrom(*_cachedTextSurface, srcRect, Common::Point(0, 0), bg);
 	} else {
     	_txtWnd->draw(_surface, 0, _scrolledY, _textWidth, _textHeight, 0, 0);
 	}
