@@ -88,7 +88,7 @@ void SpiderEngine::runMatrix(Code *code) {
 		v = new MVideo("puz_ally/matintro.smk", Common::Point(0, 0), false, false, false);
 	}
 
-	playVideo(*v);
+	runIntro(*v);
 	delete v;
 	Graphics::Surface *menu;
 	Common::Rect menuArea(0, 0, 0, 0);
@@ -101,6 +101,9 @@ void SpiderEngine::runMatrix(Code *code) {
 		transparent = false;
 	}
 
+	if (isDemo())
+    	playMusic("hpuzloop.raw", 11025);
+		
 	menuArea = Common::Rect(0, 0, menu->w, menu->h);
 	drawImage(*menu, 0, 0, transparent);
 
@@ -139,12 +142,9 @@ void SpiderEngine::runMatrix(Code *code) {
 					break;
 				}
 
-				if (isDemo())
-					playSound("sixdemo/demo/sound.lib/matrix.raw", 1);
-				else
-					playSound("sound.lib/matrix.raw", 1);
-
 				if (matrix.contains(mousePos)) {
+					playSound("matrix.raw", 1);
+
 					int x = (mousePos.x - 175) / 29;
 					int y = (mousePos.y - 96) / 29;
 					cell.moveTo(175 + 29 * x + 1, 96 + 29 * y + 1);

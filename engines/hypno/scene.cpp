@@ -144,6 +144,12 @@ void HypnoEngine::clickedHotspot(Common::Point mousePos) {
 	if (!found)
 		return;
 
+	if (isDemo()) {
+    	playSound("mouse.raw", 1, 11025, false);
+	} else {
+    	playSound("mouse.raw", 1, 11025, false);
+	}
+
 	if (selected.smenu) {
 		if (selected.smenu->empty())
 			error("Invalid menu selected");
